@@ -18,7 +18,7 @@ test_images = test_images.astype(np.float32) / 255.0
 
 def create_keras_model():
     """
-    Create keras model
+    Create a keras model
     """
     # Define the model architecture
     model = tf.keras.Sequential([
@@ -44,21 +44,36 @@ def create_keras_model():
     return model
 
 def convert_to_tflite_model():
-    """
-    Convert the Tensorflow model to a tensorflow lite model
+    """Convert the Tensorflow model to a tensorflow lite model
+
     """
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     tflite_model = converter.convert()
     return tflite_model
 
-def create_default_optimizations():
+def representative_data_gen():
+    """A helper function to provide a representative dataset for
+    quantization. The converter uses this to estimate the dynamic
+    range of all variable data in the model.
+
     """
-    Enable default optimizations, only fixed parameters are converted.
+    for input_value in tf.data.Dataset.from_tensor_slices(train_images).batch(1).take(100):
+        # The model used here has only one input so each data point
+        # has one element.
+        yield [input_value]
+
+def create_default_optimizations(variable_data=False):
+    """Enable default optimizations, if any operation cannot be quantized,
+    the default float32 is applied.
+
     """
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    if variable_data == True:
+        converter.representative_dataset = representative_data_gen
     tflite_model_quant = converter.convert()
     return tflite_model_quant
+
 
 if __name__ == '__main__':
     """Add unit tests here"""
