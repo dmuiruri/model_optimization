@@ -43,11 +43,11 @@ def create_keras_model():
     )
     return model
 
-def convert_to_tflite_model():
+def convert_to_tflite_model(keras_model):
     """Convert the Tensorflow model to a tensorflow lite model
 
     """
-    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
     tflite_model = converter.convert()
     return tflite_model
 
@@ -64,7 +64,9 @@ def representative_data_gen():
 
 def create_default_optimizations(variable_data=False):
     """Enable default optimizations, if any operation cannot be quantized,
-    the default float32 is applied.
+    the default float32 is applied. In this quantization approach, the
+    weights and variable data is quantized but the input and output
+    layer is not.
 
     """
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -74,7 +76,20 @@ def create_default_optimizations(variable_data=False):
     tflite_model_quant = converter.convert()
     return tflite_model_quant
 
+def input_ouput_datatype(tflite_model):
+    """
+    Check input and output data type
+
+    Returns a tuple of (input, output)
+    """
+    interpreter = tf.lite.Interpreter(model_content=tflite_model)
+    input_type = interpreter.get_input_details()[0]['dtype']
+    output_type = interpreter.get_output_details()[0]['dtype']
+    return (input_type, output_type)
+
 
 if __name__ == '__main__':
     """Add unit tests here"""
-    model = create_keras_model()
+    keras_model = create_keras_model()
+    tflite_model = convert_to_tflite_model(keras_model)
+    print(input_output_datatype(flite_model))
