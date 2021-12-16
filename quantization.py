@@ -1,11 +1,12 @@
 #! /usr/bin/env python
 
 import logging
-logging.getLogger("tensorflow").setLevel(logging.DEBUG)
-
 import tensorflow as tf
 import numpy as np
+import pathlib
+
 assert float(tf.__version__[:3]) >= 2.3
+logging.getLogger("tensorflow").setLevel(logging.DEBUG)
 
 
 # Load MNIST dataset
@@ -76,7 +77,7 @@ def create_default_optimizations(model, variable_data=False):
     tflite_model_quant = converter.convert()
     return tflite_model_quant
 
-def optimize_model_input_outputs(variable_data=False):
+def optimize_model_input_outputs(model, variable_data=False):
     """Convert the inputs and outputs of a model to uint8
 
     To quantize both weights and the variable data, set variable_data
@@ -95,7 +96,6 @@ def optimize_model_input_outputs(variable_data=False):
     tflite_model_quant = converter.convert()
     return tflite_model_quant
 
-    
 def input_ouput_datatype(tflite_model):
     """
     Check input and output data type
@@ -107,8 +107,32 @@ def input_ouput_datatype(tflite_model):
     output_type = interpreter.get_output_details()[0]['dtype']
     return (input_type, output_type)
 
+def save_models():
+    """Generate and save models
+    """
+    keras_model = create_keras_model()
 
-tflite_model_quant = converter.convert()
+    tflite_models_dir = pathlib.Path("/tmp/mnist_tflite_models/")
+    tflite_models_dir.mkdir(exist_ok=True, parents=True)
+
+    # Save the unquantized/float model:
+    print("Saving unquantized/float model")
+    tflite_model_file = tflite_models_dir/"mnist_model.tflite"
+    tflite_model_file.write_bytes(keras_model)
+
+    # Save the weight quantized model:
+    print("Saving a model with quantized weights")
+    tflite_model_quant_weights_file = tflite_models_dir/"mnist_model_quant_weights.tflite"
+    tflite_model_quant = optimize_model_input_outputs(keras_model, variable_data=False)
+    tflite_model_quant_weights_file.write_bytes(tflite_model_quant)
+
+    # Quantize weights, variable data, inputs and outputs of the model:
+    print("Saving a model with quantized weights")
+    tflite_model_quant_all_file = tflite_models_dir/"mnist_model_quant_all.tflite"
+    tflite_model_quant_all = optimize_model_input_outputs(keras_model, variable_data=True)
+    tflite_model_quant_file.write_bytes(tflite_model_quant_all)
+
+
 if __name__ == '__main__':
     """Add unit tests here"""
     keras_model = create_keras_model()
