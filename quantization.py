@@ -62,7 +62,7 @@ def representative_data_gen():
         # has one element.
         yield [input_value]
 
-def create_default_optimizations(variable_data=False):
+def create_default_optimizations(model, variable_data=False):
     """Enable default optimizations, if any operation cannot be quantized,
     the default float32 is applied. In this quantization approach, the
     weights and variable data is quantized but the input and output
@@ -71,11 +71,31 @@ def create_default_optimizations(variable_data=False):
     """
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    if variable_data == True:
+    if variable_data:
         converter.representative_dataset = representative_data_gen
     tflite_model_quant = converter.convert()
     return tflite_model_quant
 
+def optimize_model_input_outputs(variable_data=False):
+    """Convert the inputs and outputs of a model to uint8
+
+    To quantize both weights and the variable data, set variable_data
+    to True
+
+    """
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    if variable_data:
+        converter.representative_dataset = representative_data_gen
+    # Ensure that if any ops can't be quantized, the converter throws an error
+    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+    # Set the input and output tensors to uint8 (APIs added in r2.3)
+    converter.inference_input_type = tf.uint8
+    converter.inference_output_type = tf.uint8
+    tflite_model_quant = converter.convert()
+    return tflite_model_quant
+
+    
 def input_ouput_datatype(tflite_model):
     """
     Check input and output data type
@@ -88,6 +108,7 @@ def input_ouput_datatype(tflite_model):
     return (input_type, output_type)
 
 
+tflite_model_quant = converter.convert()
 if __name__ == '__main__':
     """Add unit tests here"""
     keras_model = create_keras_model()
